@@ -168,8 +168,8 @@ function AgeSlider({ age, onAgeChange }: { age: number; onAgeChange: (a: number)
   );
 }
 
-function CostTable({ procedure, diabetes, cardiac, elderly, age, geoTier }: {
-  procedure: string; diabetes: boolean; cardiac: boolean; elderly: boolean; age: number; geoTier: "Metro" | "Tier-2" | "Tier-3";
+function CostTable({ procedure, diabetes, cardiac, elderly, age, geoTier, confidence }: {
+  procedure: string; diabetes: boolean; cardiac: boolean; elderly: boolean; age: number; geoTier: "Metro" | "Tier-2" | "Tier-3"; confidence: number;
 }) {
   const data = procedureData[procedure];
   if (!data) return null;
@@ -192,6 +192,182 @@ function CostTable({ procedure, diabetes, cardiac, elderly, age, geoTier }: {
   const schemeDeduction = data.pmjayCoverage;
   const grossTotal = (subtotal + diabetesAdj + cardiacAdj + elderlyAdj + ageAdj + geoAdj) * ageMultiplier;
   const netLiability = Math.max(0, grossTotal - schemeDeduction);
+
+  const scoreLabel = confidence >= 0.85 ? 'Fast-Track Eligible' : confidence >= 0.65 ? 'Manual Review Required' : 'Escalate to Senior Underwriter';
+
+  const generatePDF = () => {
+    const jsPDF = (window as any).jspdf?.jsPDF;
+    if (!jsPDF) return;
+    const doc = new jsPDF();
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = 20;
+
+    // Header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(11, 31, 58);
+    doc.text('CURIFY', margin, y);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(107, 114, 128);
+    doc.text('AI Underwriting Report', margin + 38, y);
+    y += 6;
+    doc.setDrawColor(226, 228, 223);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageW - margin, y);
+    y += 10;
+
+    // Procedure & Score
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(11, 31, 58);
+    doc.text(data.name, margin, y);
+    y += 8;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(107, 114, 128);
+    doc.text(`Underwriting Score: ${(confidence * 100).toFixed(0)} / 100`, margin, y);
+    y += 5;
+    doc.setTextColor(confidence >= 0.85 ? 45 : confidence >= 0.65 ? 146 : 153,
+                      confidence >= 0.85 ? 106 : confidence >= 0.65 ? 64 : 27,
+                      confidence >= 0.85 ? 79 : confidence >= 0.65 ? 14 : 27);
+    doc.text(scoreLabel, margin, y);
+    y += 8;
+    doc.setDrawColor(226, 228, 223);
+    doc.line(margin, y, pageW - margin, y);
+    y += 8;
+
+    // Cost Breakdown Table
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(11, 31, 58);
+    doc.text('Component Cost Breakdown', margin, y);
+    y += 6;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(156, 163, 175);
+    doc.text('Anchored to NHA HBP / CGHS / PM-JAY / NPPA — 2024', margin, y);
+    y += 6;
+
+    const cols = [margin, margin + 48, margin + 74, margin + 100, margin + 130, margin + 156];
+    const headers = ['Component', 'Min', 'Max', 'Benchmark', 'Source', 'Coverage'];
+
+    doc.setFillColor(247, 249, 248);
+    doc.rect(margin, y - 3, pageW - margin * 2, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(156, 163, 175);
+    headers.forEach((h, i) => doc.text(h, cols[i], y));
+    y += 5;
+    doc.setDrawColor(226, 228, 223);
+    doc.line(margin, y, pageW - margin, y);
+    y += 4;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    visibleComponents.forEach(c => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      doc.setTextColor(17, 24, 39);
+      doc.text(c.name, cols[0], y);
+      doc.text(formatRupee(c.min), cols[1], y);
+      doc.text(formatRupee(c.max), cols[2], y);
+      doc.setTextColor(45, 106, 79);
+      doc.text(formatRupee(c.benchmark), cols[3], y);
+      doc.setTextColor(107, 114, 128);
+      doc.text(c.source, cols[4], y);
+      doc.text(c.coverage, cols[5], y);
+      y += 5;
+    });
+
+    y += 2;
+    doc.setDrawColor(226, 228, 223);
+    doc.setLineDashPattern([2, 2], 0);
+    doc.line(margin, y, pageW - margin, y);
+    doc.setLineDashPattern([], 0);
+    y += 6;
+
+    // Subtotal
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(11, 31, 58);
+    doc.text('Subtotal', margin, y);
+    doc.text(formatRupee(Math.round(subtotal)), cols[3], y);
+    y += 5;
+
+    // Adjustments
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    const adjustments: [string, number, boolean][] = [
+      ['+18% Diabetes Adjustment', diabetesAdj, diabetes],
+      ['+30% Cardiac Adjustment', cardiacAdj, cardiac],
+      ['+10% Elderly Adjustment', elderlyAdj, elderly],
+      [`+${age >= 70 ? '15' : '8'}% Age Adjustment (${age}y)`, ageAdj, age >= 60],
+    ];
+    adjustments.forEach(([label, val, active]) => {
+      if (!active) return;
+      doc.setTextColor(146, 64, 14);
+      doc.text(label, margin, y);
+      doc.text(`+${formatRupee(Math.round(val))}`, cols[3], y);
+      y += 5;
+    });
+
+    doc.setTextColor(30, 58, 95);
+    doc.text(`${geoTier} Premium Applied: +${Math.round((geoMultiplier - 1) * 100)}%`, margin, y);
+    doc.text(`+${formatRupee(Math.round(geoAdj))}`, cols[3], y);
+    y += 5;
+
+    doc.setTextColor(45, 106, 79);
+    doc.text('PM-JAY Coverage', margin, y);
+    doc.text(`-${formatRupee(schemeDeduction)}`, cols[3], y);
+    y += 7;
+
+    // Net Patient Liability
+    doc.setDrawColor(226, 228, 223);
+    doc.line(margin, y, pageW - margin, y);
+    y += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(11, 31, 58);
+    doc.text('Net Patient Liability', margin, y);
+    doc.setFontSize(11);
+    doc.text(formatRupee(Math.round(netLiability)), cols[3], y);
+    y += 4;
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(156, 163, 175);
+    doc.text(`Gross: ${formatRupee(Math.round(grossTotal))}  |  Scheme Deduction: -${formatRupee(schemeDeduction)}`, margin, y);
+    y += 10;
+
+    // Recommended Loan Range
+    doc.setDrawColor(226, 228, 223);
+    doc.line(margin, y, pageW - margin, y);
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(11, 31, 58);
+    doc.text('Recommended Loan Range', margin, y);
+    y += 7;
+    doc.setFontSize(14);
+    doc.text(`${formatLakhs(Math.round(netLiability * 1.05))} – ${formatLakhs(Math.round(grossTotal * 1.15))}`, margin, y);
+    y += 6;
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(156, 163, 175);
+    doc.text('Anchored to NHA/CGHS Schedule 2024 + PM-JAY Package Rates', margin, y);
+    y += 4;
+    doc.text('Compliant with RBI Healthcare Lending Guidelines 2024', margin, y);
+
+    // Footer date
+    const pageH = doc.internal.pageSize.getHeight();
+    doc.setFontSize(7);
+    doc.setTextColor(156, 163, 175);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`, margin, pageH - 10);
+    doc.text('CURIFY AI Underwriter — For informational purposes only', margin, pageH - 5);
+
+    doc.save(`CURIFY_Report_${data.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
 
   const [hoveredCell, setHoveredCell] = useState<{ row: number; col: string } | null>(null);
 
@@ -385,6 +561,20 @@ function CostTable({ procedure, diabetes, cardiac, elderly, age, geoTier }: {
         </p>
       </div>
 
+      {/* Download Report */}
+      <button onClick={generatePDF}
+        className="w-full mt-4 py-3 rounded-lg font-dm text-[14px] font-semibold btn-hover"
+        style={{ background: '#2D6A4F', color: 'white' }}>
+        <span className="flex items-center justify-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download Report
+        </span>
+      </button>
+
       {/* Audit Export */}
       <button className="w-full mt-4 py-3 rounded-lg font-dm text-[14px] font-semibold btn-hover opacity-60 cursor-not-allowed"
         style={{ border: '1.5px solid #2D6A4F', color: '#2D6A4F', background: 'transparent' }}
@@ -555,6 +745,7 @@ export default function LenderView({ searchQuery, geoTier, location }: LenderVie
                 elderly={elderly}
                 age={age}
                 geoTier={geoTier}
+                confidence={confidence}
               />
             )}
           </>

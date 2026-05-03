@@ -400,7 +400,7 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           Launch CURIFY Navigator →
         </button>
         <p className="font-dm text-[13px] mt-4" style={{ color: 'rgba(255,255,255,0.3)' }}>
-          Built by Vaishnavi Thakur
+          Built by Team Shaurya
         </p>
       </section>
     </div>

@@ -19,7 +19,33 @@ const commonIssues = [
   "Chest Pain While Walking", "Extreme Headache", "Feeling Dizzy", "Knee Hurts",
 ];
 
-function MicButton({ onResult }: { onResult: (text: string) => void }) {
+type Lang = 'en' | 'hi';
+
+function isHindi(text: string): boolean {
+  const hindiRange = /[\u0900-\u097F]/;
+  const hindiChars = text.match(hindiRange);
+  if (!hindiChars) return false;
+  const totalAlpha = text.replace(/[\s\d.,;:!?()\-/]/g, '').length;
+  if (totalAlpha === 0) return false;
+  const hindiCount = (text.match(/[\u0900-\u097F]/g) || []).length;
+  return hindiCount / totalAlpha > 0.3;
+}
+
+async function translateToEnglish(text: string): Promise<string> {
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data && data[0]) {
+      return data[0].map((seg: any) => seg[0]).join('');
+    }
+    return text;
+  } catch {
+    return text;
+  }
+}
+
+function MicButton({ lang, onResult }: { lang: Lang; onResult: (text: string) => void }) {
   const [recording, setRecording] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const recognitionRef = useRef<any>(null);
@@ -36,7 +62,7 @@ function MicButton({ onResult }: { onResult: (text: string) => void }) {
       return;
     }
     const recognition = new SR();
-    recognition.lang = 'en-IN';
+    recognition.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
@@ -59,7 +85,7 @@ function MicButton({ onResult }: { onResult: (text: string) => void }) {
         setRecording(false);
       }
     }, 8000);
-  }, [recording, onResult]);
+  }, [recording, onResult, lang]);
 
   return (
     <>
@@ -335,6 +361,8 @@ export default function PatientView({ searchQuery }: PatientViewProps) {
   const [geoTier, setGeoTier] = useState<"Metro" | "Tier-2" | "Tier-3">("Metro");
   const [location, setLocation] = useState('');
   const [toastMsg, setToastMsg] = useState('');
+  const [lang, setLang] = useState<Lang>('en');
+  const [translating, setTranslating] = useState(false);
 
   useEffect(() => {
     if (searchQuery && searchQuery !== query) {
@@ -357,14 +385,33 @@ export default function PatientView({ searchQuery }: PatientViewProps) {
     }, 1500);
   };
 
+  const processAndSearch = async (text: string) => {
+    setQuery(text);
+    const needsTranslation = lang === 'hi' || isHindi(text);
+
+    if (needsTranslation) {
+      setTranslating(true);
+      const translated = await translateToEnglish(text);
+      setTranslating(false);
+      doSearch(translated);
+    } else {
+      doSearch(text);
+    }
+  };
+
   const handleChipClick = (text: string) => {
     setQuery(text);
     doSearch(text);
   };
 
   const handleMicResult = (text: string) => {
-    setQuery(text);
-    doSearch(text);
+    processAndSearch(text);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      processAndSearch(query);
+    }
   };
 
   const detectLocation = () => {
@@ -405,14 +452,40 @@ export default function PatientView({ searchQuery }: PatientViewProps) {
                 onChange={e => setQuery(e.target.value)}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
-                onKeyDown={e => e.key === 'Enter' && doSearch(query)}
-                placeholder="Search procedure, condition, or billing issue..."
+                onKeyDown={handleKeyDown}
+                placeholder={lang === 'hi' ? "प्रक्रिया, स्थिति, या बिलिंग खोजें..." : "Search procedure, condition, or billing issue..."}
                 className="w-full font-dm text-[15px] pl-12 pr-4 py-3.5 rounded-full border-2 outline-none transition-all"
                 style={{ borderColor: focused ? '#2D6A4F' : '#C8E6D4', background: 'white' }}
               />
             </div>
-            <MicButton onResult={handleMicResult} />
+            <MicButton lang={lang} onResult={handleMicResult} />
+
+            {/* Language toggle pill */}
+            <button
+              onClick={() => setLang(l => l === 'en' ? 'hi' : 'en')}
+              className="flex-shrink-0 flex items-center gap-0.5 px-2 py-1.5 rounded-full font-dm text-[12px] btn-hover"
+              style={{
+                background: 'white',
+                border: '1px solid #C8E6D4',
+                color: '#2D6A4F',
+              }}>
+              <span className={lang === 'en' ? 'font-semibold' : 'opacity-50'}>EN</span>
+              <span style={{ color: '#C8E6D4', margin: '0 2px' }}>|</span>
+              <span className={lang === 'hi' ? 'font-semibold' : 'opacity-50'}>हि</span>
+            </button>
           </div>
+
+          {/* Translating indicator */}
+          {translating && (
+            <div className="mt-1.5 flex items-center gap-1.5"
+              style={{ animation: 'fade-in-up 200ms ease-out' }}>
+              <div className="w-3 h-3 rounded-full border-2 border-t-[#2D6A4F] border-[#C8E6D4]"
+                style={{ animation: 'spin 0.8s linear infinite' }}/>
+              <span className="font-dm text-[12px]" style={{ color: '#2D6A4F' }}>
+                Translating from Hindi...
+              </span>
+            </div>
+          )}
 
           <button onClick={detectLocation}
             className="mt-2 font-dm text-[13px] px-4 py-1.5 rounded-lg btn-hover"

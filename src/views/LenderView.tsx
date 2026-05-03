@@ -168,11 +168,180 @@ function AgeSlider({ age, onAgeChange }: { age: number; onAgeChange: (a: number)
   );
 }
 
+interface SchemeInfo {
+  name: string;
+  detail: string;
+  eligibility: string;
+  accent: string;
+  questions: { q: string }[];
+  coverageAmount: number;
+}
+
+const schemeDefinitions: SchemeInfo[] = [
+  {
+    name: "Ayushman Bharat PM-JAY",
+    detail: `Up to ₹5,00,000/year · HBP Code H1701`,
+    eligibility: "BPL / SECC-listed households",
+    accent: "#F97316",
+    questions: [{ q: "Is your family BPL or SECC listed? (Yes/No)" }, { q: "Annual income below ₹2.5L? (Yes/No)" }],
+    coverageAmount: 500000,
+  },
+  {
+    name: "Central Govt Health Scheme",
+    detail: "For central govt employees & pensioners",
+    eligibility: "NABH accreditation mandatory",
+    accent: "#2563EB",
+    questions: [{ q: "Are you a central government employee or pensioner? (Yes/No)" }],
+    coverageAmount: 150000,
+  },
+  {
+    name: "Employees State Insurance",
+    detail: "Full coverage at ESIC network hospitals",
+    eligibility: "Salary ≤ ₹21,000/month with ESI contribution",
+    accent: "#2D6A4F",
+    questions: [{ q: "Is your monthly salary below ₹21,000? (Yes/No)" }],
+    coverageAmount: 100000,
+  },
+  {
+    name: "MJPJAY Maharashtra",
+    detail: `Covers up to ₹1,50,000 for this procedure`,
+    eligibility: "Empanelled hospitals in Maharashtra only",
+    accent: "#7C3AED",
+    questions: [{ q: "Are you a Maharashtra resident? (Yes/No)" }],
+    coverageAmount: 150000,
+  },
+];
+
+function EligibilityModal({ scheme, onClose, onApply }: {
+  scheme: SchemeInfo;
+  onClose: () => void;
+  onApply: (schemeName: string, amount: number) => void;
+}) {
+  const [answers, setAnswers] = useState<boolean[]>(scheme.questions.map(() => false));
+  const [answered, setAnswered] = useState<boolean[]>(scheme.questions.map(() => false));
+  const [submitted, setSubmitted] = useState(false);
+
+  const allYes = answers.every(a => a);
+  const allAnswered = answered.every(a => a);
+
+  const handleAnswer = (idx: number, val: boolean) => {
+    const newAnswers = [...answers];
+    const newAnswered = [...answered];
+    newAnswers[idx] = val;
+    newAnswered[idx] = true;
+    setAnswers(newAnswers);
+    setAnswered(newAnswered);
+  };
+
+  const handleSubmit = () => {
+    setSubmitted(true);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(11,31,58,0.4)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div className="w-full max-w-md mx-4 rounded-2xl overflow-hidden"
+        style={{ background: 'white', boxShadow: '0 24px 64px rgba(11,31,58,0.25)', animation: 'fade-in-up 300ms ease-out' }}
+        onClick={e => e.stopPropagation()}>
+
+        <div className="px-5 py-4 border-b" style={{ borderColor: '#E2E4DF' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-dm text-[14px] font-semibold" style={{ color: '#0B1F3A' }}>{scheme.name}</p>
+              <p className="font-dm text-[11px] mt-0.5" style={{ color: '#6B7280' }}>Quick Eligibility Check</p>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-800 transition-colors">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        {!submitted ? (
+          <div className="px-5 py-5 space-y-4">
+            {scheme.questions.map((item, i) => (
+              <div key={i}>
+                <p className="font-dm text-[13px] mb-2" style={{ color: '#111827' }}>{item.q}</p>
+                <div className="flex gap-2">
+                  <button onClick={() => handleAnswer(i, true)}
+                    className="flex-1 py-2 rounded-lg font-dm text-[13px] font-semibold transition-colors"
+                    style={{
+                      background: answered[i] && answers[i] ? '#2D6A4F' : 'white',
+                      color: answered[i] && answers[i] ? 'white' : '#2D6A4F',
+                      border: `1.5px solid ${answered[i] && answers[i] ? '#2D6A4F' : '#C8E6D4'}`,
+                    }}>
+                    Yes
+                  </button>
+                  <button onClick={() => handleAnswer(i, false)}
+                    className="flex-1 py-2 rounded-lg font-dm text-[13px] font-semibold transition-colors"
+                    style={{
+                      background: answered[i] && !answers[i] ? '#92400E' : 'white',
+                      color: answered[i] && !answers[i] ? 'white' : '#92400E',
+                      border: `1.5px solid ${answered[i] && !answers[i] ? '#92400E' : '#E2E4DF'}`,
+                    }}>
+                    No
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button onClick={handleSubmit} disabled={!allAnswered}
+              className="w-full py-2.5 rounded-lg font-dm text-[14px] font-semibold transition-opacity"
+              style={{
+                background: allAnswered ? '#2D6A4F' : '#E2E4DF',
+                color: allAnswered ? 'white' : '#9CA3AF',
+                cursor: allAnswered ? 'pointer' : 'not-allowed',
+              }}>
+              Check Eligibility
+            </button>
+          </div>
+        ) : allYes ? (
+          <div className="px-5 py-6 text-center">
+            <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: '#DCFCE7' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            </div>
+            <p className="font-dm text-[15px] font-semibold" style={{ color: '#2D6A4F' }}>You are likely eligible</p>
+            <p className="font-mono text-[18px] font-bold mt-2" style={{ color: '#0B1F3A' }}>
+              Coverage: {formatRupee(scheme.coverageAmount)}
+            </p>
+            <p className="font-dm text-[11px] mt-1" style={{ color: '#6B7280' }}>Under {scheme.name}</p>
+            <button onClick={() => onApply(scheme.name, scheme.coverageAmount)}
+              className="w-full mt-4 py-2.5 rounded-lg font-dm text-[14px] font-semibold btn-hover"
+              style={{ background: '#2D6A4F', color: 'white' }}>
+              Apply This Scheme
+            </button>
+          </div>
+        ) : (
+          <div className="px-5 py-6 text-center">
+            <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: '#FEF3C7' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <p className="font-dm text-[15px] font-semibold" style={{ color: '#92400E' }}>You may not be eligible</p>
+            <p className="font-dm text-[12px] mt-2" style={{ color: '#6B7280' }}>
+              Consult your nearest empanelled hospital for further assistance.
+            </p>
+            <button onClick={onClose}
+              className="w-full mt-4 py-2.5 rounded-lg font-dm text-[14px] font-semibold btn-hover"
+              style={{ border: '1.5px solid #E2E4DF', color: '#6B7280', background: 'white' }}>
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CostTable({ procedure, diabetes, cardiac, elderly, age, geoTier, confidence }: {
   procedure: string; diabetes: boolean; cardiac: boolean; elderly: boolean; age: number; geoTier: "Metro" | "Tier-2" | "Tier-3"; confidence: number;
 }) {
   const data = procedureData[procedure];
   if (!data) return null;
+
+  const [appliedSchemes, setAppliedSchemes] = useState<{ name: string; amount: number }[]>([]);
+  const [modalScheme, setModalScheme] = useState<SchemeInfo | null>(null);
 
   const geoMultiplier = geoTier === 'Metro' ? 1.15 : geoTier === 'Tier-2' ? 1.05 : 1;
   const ageMultiplier = age >= 70 ? 1.15 : age >= 60 ? 1.08 : 1;
@@ -189,9 +358,19 @@ function CostTable({ procedure, diabetes, cardiac, elderly, age, geoTier, confid
   const elderlyAdj = elderly ? subtotal * 0.10 : 0;
   const ageAdj = age >= 70 ? subtotal * 0.15 : age >= 60 ? subtotal * 0.08 : 0;
   const geoAdj = (geoMultiplier - 1) * subtotal;
-  const schemeDeduction = data.pmjayCoverage;
+  const baseSchemeDeduction = data.pmjayCoverage;
+  const extraSchemeDeduction = appliedSchemes.reduce((s, sc) => s + sc.amount, 0);
+  const schemeDeduction = baseSchemeDeduction + extraSchemeDeduction;
   const grossTotal = (subtotal + diabetesAdj + cardiacAdj + elderlyAdj + ageAdj + geoAdj) * ageMultiplier;
   const netLiability = Math.max(0, grossTotal - schemeDeduction);
+
+  const handleApplyScheme = (name: string, amount: number) => {
+    setAppliedSchemes(prev => {
+      if (prev.some(s => s.name === name)) return prev;
+      return [...prev, { name, amount }];
+    });
+    setModalScheme(null);
+  };
 
   const scoreLabel = confidence >= 0.85 ? 'Fast-Track Eligible' : confidence >= 0.65 ? 'Manual Review Required' : 'Escalate to Senior Underwriter';
 
@@ -320,8 +499,15 @@ function CostTable({ procedure, diabetes, cardiac, elderly, age, geoTier, confid
 
     doc.setTextColor(45, 106, 79);
     doc.text('PM-JAY Coverage', margin, y);
-    doc.text(`-${formatRupee(schemeDeduction)}`, cols[3], y);
-    y += 7;
+    doc.text(`-${formatRupee(baseSchemeDeduction)}`, cols[3], y);
+    y += 5;
+
+    appliedSchemes.forEach(s => {
+      doc.text(s.name, margin, y);
+      doc.text(`-${formatRupee(s.amount)}`, cols[3], y);
+      y += 5;
+    });
+    y += 2;
 
     // Net Patient Liability
     doc.setDrawColor(226, 228, 223);
@@ -494,8 +680,15 @@ function CostTable({ procedure, diabetes, cardiac, elderly, age, geoTier, confid
 
         <div className="flex justify-between py-2 px-3 rounded" style={{ background: '#DCFCE7' }}>
           <span className="font-dm text-[12px]" style={{ color: '#2D6A4F' }}>PM-JAY Coverage</span>
-          <span className="font-mono text-[12px]" style={{ color: '#2D6A4F' }}>–{formatRupee(schemeDeduction)}</span>
+          <span className="font-mono text-[12px]" style={{ color: '#2D6A4F' }}>–{formatRupee(baseSchemeDeduction)}</span>
         </div>
+
+        {appliedSchemes.map((s, i) => (
+          <div key={i} className="flex justify-between py-2 px-3 rounded" style={{ background: '#DCFCE7' }}>
+            <span className="font-dm text-[12px]" style={{ color: '#2D6A4F' }}>{s.name}</span>
+            <span className="font-mono text-[12px]" style={{ color: '#2D6A4F' }}>–{formatRupee(s.amount)}</span>
+          </div>
+        ))}
 
         <div className="flex justify-between items-center py-4 px-3">
           <div>
@@ -514,26 +707,55 @@ function CostTable({ procedure, diabetes, cardiac, elderly, age, geoTier, confid
       <div className="mt-6">
         <h3 className="font-dm text-[13px] font-semibold mb-3" style={{ color: '#0B1F3A' }}>Applicable Government Schemes</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {[
-            { name: "Ayushman Bharat PM-JAY", detail: `Up to ₹5,00,000/year · HBP Code H1701`, eligibility: "BPL / SECC-listed households", accent: "#F97316" },
-            { name: "Central Govt Health Scheme", detail: "For central govt employees & pensioners", eligibility: "NABH accreditation mandatory", accent: "#2563EB" },
-            { name: "Employees State Insurance", detail: "Full coverage at ESIC network hospitals", eligibility: "Salary ≤ ₹21,000/month with ESI contribution", accent: "#2D6A4F" },
-            { name: "MJPJAY Maharashtra", detail: `Covers up to ₹1,50,000 for this procedure`, eligibility: "Empanelled hospitals in Maharashtra only", accent: "#7C3AED" },
-          ].map((s, i) => (
-            <div key={i} className="bg-white rounded-[10px] p-3.5 border card-hover"
-              style={{ borderLeft: `4px solid ${s.accent}`, borderColor: `${s.accent}33` }}>
-              <p className="font-dm text-[13px] font-bold" style={{ color: '#0B1F3A' }}>{s.name}</p>
-              <p className="font-dm text-[12px] mt-1" style={{ color: '#6B7280' }}>{s.detail}</p>
-              <p className="font-dm text-[11px] mt-0.5" style={{ color: '#9CA3AF' }}>Eligibility: {s.eligibility}</p>
-              <button className="mt-2 font-dm text-[11px] px-3 py-1 rounded border btn-hover"
-                style={{ borderColor: s.accent, color: s.accent }}
-                title="Eligibility verification in production version">
-                Check Eligibility
-              </button>
+          {schemeDefinitions.map((s, i) => {
+            const isApplied = appliedSchemes.some(a => a.name === s.name);
+            return (
+              <div key={i} className="bg-white rounded-[10px] p-3.5 border card-hover"
+                style={{ borderLeft: `4px solid ${s.accent}`, borderColor: `${s.accent}33` }}>
+                <p className="font-dm text-[13px] font-bold" style={{ color: '#0B1F3A' }}>{s.name}</p>
+                <p className="font-dm text-[12px] mt-1" style={{ color: '#6B7280' }}>{s.detail}</p>
+                <p className="font-dm text-[11px] mt-0.5" style={{ color: '#9CA3AF' }}>Eligibility: {s.eligibility}</p>
+                {isApplied ? (
+                  <span className="inline-flex items-center gap-1 mt-2 font-dm text-[11px] px-3 py-1 rounded-full"
+                    style={{ background: '#DCFCE7', color: '#2D6A4F' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6L9 17l-5-5"/>
+                    </svg>
+                    Applied – {formatRupee(s.coverageAmount)}
+                  </span>
+                ) : (
+                  <button onClick={() => setModalScheme(s)}
+                    className="mt-2 font-dm text-[11px] px-3 py-1 rounded border btn-hover"
+                    style={{ borderColor: s.accent, color: s.accent }}>
+                    Check Eligibility
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Applied Schemes Deductions */}
+      {appliedSchemes.length > 0 && (
+        <div className="mt-4 space-y-2">
+          <h3 className="font-dm text-[13px] font-semibold" style={{ color: '#0B1F3A' }}>Applied Scheme Deductions</h3>
+          {appliedSchemes.map((s, i) => (
+            <div key={i} className="flex justify-between py-2 px-3 rounded" style={{ background: '#DCFCE7' }}>
+              <span className="font-dm text-[12px]" style={{ color: '#2D6A4F' }}>{s.name}</span>
+              <span className="font-mono text-[12px]" style={{ color: '#2D6A4F' }}>-{formatRupee(s.amount)}</span>
             </div>
           ))}
         </div>
-      </div>
+      )}
+
+      {modalScheme && (
+        <EligibilityModal
+          scheme={modalScheme}
+          onClose={() => setModalScheme(null)}
+          onApply={handleApplyScheme}
+        />
+      )}
 
       {/* Loan Sanction Recommendation */}
       <div className="mt-6 rounded-xl p-6 border-2" style={{ borderColor: '#2D6A4F' }}>

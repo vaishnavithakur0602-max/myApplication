@@ -27,7 +27,7 @@ function MicButton({ onResult }: { onResult: (text: string) => void }) {
   const handleClick = useCallback(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
-      setToastMsg('Audio input not supported on this browser');
+      setToastMsg('Voice not supported on this browser.');
       return;
     }
     if (recording && recognitionRef.current) {

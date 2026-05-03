@@ -1,6 +1,99 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCountUp, useIntersectionObserver } from '../hooks/useAnimations';
 
+function BeforeAfterTimer() {
+  const [traditionalSec, setTraditionalSec] = useState(0);
+  const [curifySec, setCurifySec] = useState(0);
+  const [curifyDone, setCurifyDone] = useState(false);
+  const startRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let raf: number;
+    const animate = (ts: number) => {
+      if (!startRef.current) startRef.current = ts;
+      const elapsed = (ts - startRef.current) / 1000;
+
+      // Traditional: counts up slowly, 1 second = ~1 hour (reaches 4hr at 4s, 6hr at 6s)
+      setTraditionalSec(Math.min(elapsed * 1, 6));
+
+      // CURIFY: completes in 8 seconds
+      if (elapsed <= 8) {
+        setCurifySec(elapsed);
+      } else if (!curifyDone) {
+        setCurifyDone(true);
+      }
+
+      if (elapsed < 8 || !curifyDone) {
+        raf = requestAnimationFrame(animate);
+      }
+    };
+    raf = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const formatTraditional = (hrs: number) => {
+    const h = Math.floor(hrs);
+    const m = Math.floor((hrs - h) * 60);
+    return `${h}h ${m > 0 ? m + 'm' : ''}`.trim();
+  };
+
+  return (
+    <div className="flex items-center justify-center gap-8 md:gap-16 mt-8"
+      style={{ animation: 'fade-in-up 400ms ease-out 440ms both' }}>
+      {/* Traditional */}
+      <div className="flex flex-col items-center">
+        <p className="font-dm text-[11px] uppercase tracking-wider mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          Traditional Underwriting
+        </p>
+        <div className="relative w-20 h-20">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4"/>
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#991B1B" strokeWidth="4"
+              strokeDasharray={2 * Math.PI * 34}
+              strokeDashoffset={2 * Math.PI * 34 * (1 - Math.min(traditionalSec / 6, 1))}
+              strokeLinecap="round" transform="rotate(-90 40 40)"
+              style={{ transition: 'stroke-dashoffset 0.3s ease' }}/>
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="font-mono text-[14px] font-semibold" style={{ color: '#991B1B' }}>
+              {formatTraditional(traditionalSec)}
+            </span>
+          </div>
+        </div>
+        <p className="font-dm text-[10px] mt-1.5" style={{ color: 'rgba(255,255,255,0.3)' }}>4–6 hours</p>
+      </div>
+
+      {/* VS divider */}
+      <div className="flex flex-col items-center gap-1">
+        <span className="font-dm text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.25)' }}>vs</span>
+      </div>
+
+      {/* CURIFY */}
+      <div className="flex flex-col items-center">
+        <p className="font-dm text-[11px] uppercase tracking-wider mb-2" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          CURIFY AI
+        </p>
+        <div className="relative w-20 h-20">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4"/>
+            <circle cx="40" cy="40" r="34" fill="none" stroke="#2D6A4F" strokeWidth="4"
+              strokeDasharray={2 * Math.PI * 34}
+              strokeDashoffset={2 * Math.PI * 34 * (1 - Math.min(curifySec / 8, 1))}
+              strokeLinecap="round" transform="rotate(-90 40 40)"
+              style={{ transition: 'stroke-dashoffset 0.3s ease' }}/>
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="font-mono text-[14px] font-semibold" style={{ color: '#2D6A4F' }}>
+              {curifyDone ? '8m' : `${Math.floor(curifySec)}s`}
+            </span>
+          </div>
+        </div>
+        <p className="font-dm text-[10px] mt-1.5" style={{ color: 'rgba(255,255,255,0.3)' }}>8 minutes</p>
+      </div>
+    </div>
+  );
+}
+
 interface LandingPageProps {
   onNavigate: (view: string) => void;
 }
@@ -253,12 +346,15 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           </p>
 
           {/* Live counters */}
-          <div className="flex flex-wrap justify-center gap-4 mb-10"
+          <div className="flex flex-wrap justify-center gap-4 mb-6"
             style={{ animation: `fade-in-up 400ms ease-out 360ms both` }}>
             <StatCard value={23} suffix="L Cr+" label="Healthcare loans disbursed FY24" delay={0} />
             <StatCard value={55} suffix="Cr+" label="PM-JAY beneficiaries enrolled" delay={80} />
             <StatCard value={967} suffix="%" label="Time saved vs manual underwriting" delay={160} />
           </div>
+
+          {/* Before/After Timer */}
+          <BeforeAfterTimer />
 
           {/* CTA buttons */}
           <div className="flex flex-wrap justify-center gap-3"

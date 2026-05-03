@@ -10,6 +10,57 @@ interface LenderViewProps {
   location: string;
 }
 
+function CostTableSkeleton() {
+  const shimmerStyle = {
+    background: 'linear-gradient(90deg, #E2E4DF 25%, #F3F4F1 50%, #E2E4DF 75%)',
+    backgroundSize: '200% 100%',
+    animation: 'shimmer 1.5s ease infinite',
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="rounded h-4 w-48" style={shimmerStyle} />
+      </div>
+      <div className="rounded h-3 w-64 mb-3" style={shimmerStyle} />
+      <div className="responsive-table">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr style={{ background: '#F7F9F8' }}>
+              {['Component', 'Min (₹)', 'Max (₹)', 'Benchmark (₹)', 'Source', 'Coverage'].map(h => (
+                <th key={h} className="font-dm text-[10px] uppercase tracking-wider text-left px-3 py-2"
+                  style={{ color: '#9CA3AF', borderBottom: '2px solid #E2E4DF' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <tr key={i}>
+                <td className="px-3 py-2.5"><div className="rounded h-3.5" style={{ ...shimmerStyle, width: `${60 + i * 8}px` }} /></td>
+                <td className="px-3 py-2.5"><div className="rounded h-3.5 w-16" style={shimmerStyle} /></td>
+                <td className="px-3 py-2.5"><div className="rounded h-3.5 w-16" style={shimmerStyle} /></td>
+                <td className="px-3 py-2.5"><div className="rounded h-3.5 w-16" style={shimmerStyle} /></td>
+                <td className="px-3 py-2.5"><div className="rounded h-4 w-14" style={shimmerStyle} /></td>
+                <td className="px-3 py-2.5"><div className="rounded h-3.5 w-20" style={shimmerStyle} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-4 border-t-2 border-dashed" style={{ borderColor: '#E2E4DF' }}>
+        <div className="flex justify-between py-2.5 px-3">
+          <div className="rounded h-4 w-16" style={shimmerStyle} />
+          <div className="rounded h-4 w-24" style={shimmerStyle} />
+        </div>
+        <div className="flex justify-between py-4 px-3">
+          <div className="rounded h-5 w-32" style={shimmerStyle} />
+          <div className="rounded h-6 w-28" style={shimmerStyle} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LoadingSteps() {
   const [steps, setSteps] = useState([
     { text: "Parsing procedure query...", sub: "Natural language processing", done: false },
@@ -353,6 +404,7 @@ function CostTable({ procedure, diabetes, cardiac, elderly, age, geoTier }: {
 export default function LenderView({ searchQuery, geoTier, location }: LenderViewProps) {
   const [procedure, setProcedure] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tableLoading, setTableLoading] = useState(true);
   const [diabetes, setDiabetes] = useState(false);
   const [cardiac, setCardiac] = useState(false);
   const [elderly, setElderly] = useState(false);
@@ -362,16 +414,20 @@ export default function LenderView({ searchQuery, geoTier, location }: LenderVie
     const matched = matchProcedure(searchQuery);
     if (matched) {
       setLoading(true);
+      setTableLoading(true);
       const timer = setTimeout(() => {
         setProcedure(matched);
         setLoading(false);
       }, 2500);
-      return () => clearTimeout(timer);
+      const tableTimer = setTimeout(() => setTableLoading(false), 3200);
+      return () => { clearTimeout(timer); clearTimeout(tableTimer); };
     } else {
       setProcedure('knee replacement');
       setLoading(true);
+      setTableLoading(true);
       const timer = setTimeout(() => setLoading(false), 2500);
-      return () => clearTimeout(timer);
+      const tableTimer = setTimeout(() => setTableLoading(false), 3200);
+      return () => { clearTimeout(timer); clearTimeout(tableTimer); };
     }
   }, [searchQuery]);
 
@@ -489,7 +545,9 @@ export default function LenderView({ searchQuery, geoTier, location }: LenderVie
               </p>
             </div>
 
-            {procedure && (
+            {tableLoading ? (
+              <CostTableSkeleton />
+            ) : procedure && (
               <CostTable
                 procedure={procedure}
                 diabetes={diabetes}

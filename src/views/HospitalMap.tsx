@@ -6,7 +6,7 @@ import { formatRupee } from '../hooks/useAnimations';
 interface HospitalMapProps {
   userLocation: { lat: number; lon: number } | null;
   onLocationDetected: (lat: number, lon: number, city: string, tier: "Metro" | "Tier-2" | "Tier-3") => void;
-  onSelectHospital: (name: string) => void;
+  onSelectHospital: (name: string, tier: string) => void;
 }
 
 type FilterType = 'all' | 'Premium' | 'Mid-Tier' | 'Govt' | 'pmjay' | 'cghs';
@@ -58,16 +58,32 @@ export default function HospitalMap({ userLocation, onLocationDetected, onSelect
       }).addTo(map);
 
       const popupContent = `
-        <div style="padding:12px;font-family:'DM Sans',sans-serif;min-width:220px">
-          <p style="font-size:14px;font-weight:600;color:#0B1F3A;margin:0 0 4px">${h.name}</p>
-          <p style="font-size:12px;color:#6B7280;margin:0 0 8px">${h.city} · ${h.tier}</p>
-          ${h.nabh ? '<span style="display:inline-block;font-size:10px;padding:2px 6px;border-radius:999px;background:#DCFCE7;color:#2D6A4F;border:1px solid #A8D5BA;margin-right:4px">NABH</span>' : ''}
-          ${h.pmjay ? '<span style="display:inline-block;font-size:10px;padding:2px 6px;border-radius:999px;background:#DCFCE7;color:#2D6A4F;margin-right:4px">PM-JAY</span>' : ''}
-          ${h.cghs ? '<span style="display:inline-block;font-size:10px;padding:2px 6px;border-radius:999px;background:#EFF6FF;color:#1E3A5F">CGHS</span>' : ''}
-          <p style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0B1F3A;margin:8px 0 0">₹${h.kneeMin.toLocaleString('en-IN')} – ₹${h.kneeMax.toLocaleString('en-IN')}</p>
-          <button onclick="window.__curifySelectHospital && window.__curifySelectHospital('${h.name}')"
-            style="width:100%;margin-top:8px;padding:6px 12px;background:#2D6A4F;color:white;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">
-            Use This Hospital
+        <div style="padding:14px;font-family:'DM Sans',sans-serif;min-width:240px">
+          <p style="font-size:15px;font-weight:600;color:#0B1F3A;margin:0 0 6px">${h.name}</p>
+          <p style="font-size:12px;color:#6B7280;margin:0 0 8px">${h.city}</p>
+          <div style="margin-bottom:8px">
+            <span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;margin-right:4px;
+              background:${h.tier === 'Premium' ? '#FEE2E2' : h.tier === 'Mid-Tier' ? '#EFF6FF' : '#DCFCE7'};
+              color:${h.tier === 'Premium' ? '#991B1B' : h.tier === 'Mid-Tier' ? '#1E3A5F' : '#2D6A4F'}">
+              ${h.tier}
+            </span>
+            <span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;margin-right:4px;
+              background:${h.pmjay ? '#DCFCE7' : '#F3F4F1'};color:${h.pmjay ? '#2D6A4F' : '#6B7280'}">
+              PM-JAY: ${h.pmjay ? 'Yes' : 'No'}
+            </span>
+            <span style="display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;
+              background:${h.cghs ? '#EFF6FF' : '#F3F4F1'};color:${h.cghs ? '#1E3A5F' : '#6B7280'}">
+              CGHS: ${h.cghs ? 'Yes' : 'No'}
+            </span>
+          </div>
+          <p style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#0B1F3A;margin:0 0 10px">
+            Knee: ₹${h.kneeMin.toLocaleString('en-IN')} – ₹${h.kneeMax.toLocaleString('en-IN')}
+          </p>
+          <button onclick="window.__curifySelectHospital && window.__curifySelectHospital('${h.name}','${h.tier}')"
+            style="width:100%;padding:8px 12px;background:#2D6A4F;color:white;border:none;border-radius:6px;
+            font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+            Use for Cost Estimate
           </button>
         </div>
       `;
@@ -84,8 +100,8 @@ export default function HospitalMap({ userLocation, onLocationDetected, onSelect
 
   // Set up global callback for hospital selection
   useEffect(() => {
-    (window as any).__curifySelectHospital = (name: string) => {
-      onSelectHospital(name);
+    (window as any).__curifySelectHospital = (name: string, tier: string) => {
+      onSelectHospital(name, tier);
     };
     return () => { delete (window as any).__curifySelectHospital; };
   }, [onSelectHospital]);
@@ -181,7 +197,7 @@ export default function HospitalMap({ userLocation, onLocationDetected, onSelect
         </button>
 
         {/* Filter buttons */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-3">
           {filters.map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)}
               className="chip-hover font-dm text-[12px] px-3 py-1.5 rounded-full transition-colors"
@@ -192,6 +208,20 @@ export default function HospitalMap({ userLocation, onLocationDetected, onSelect
               }}>
               {f.label}
             </button>
+          ))}
+        </div>
+
+        {/* Map Legend */}
+        <div className="flex items-center gap-5 mb-4">
+          {[
+            { color: '#991B1B', label: 'Premium' },
+            { color: '#2D6A4F', label: 'Govt/NABH' },
+            { color: '#2563EB', label: 'PM-JAY Empanelled' },
+          ].map((l, i) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full" style={{ background: l.color }}/>
+              <span className="font-dm text-[11px]" style={{ color: '#6B7280' }}>{l.label}</span>
+            </div>
           ))}
         </div>
 
@@ -213,7 +243,7 @@ export default function HospitalMap({ userLocation, onLocationDetected, onSelect
                 <div key={i}
                   className="bg-white rounded-xl p-4 border card-hover"
                   style={{ borderColor: '#E2E4DF' }}
-                  onClick={() => onSelectHospital(h.name)}>
+                  onClick={() => onSelectHospital(h.name, h.tier)}>
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-dm text-[14px] font-semibold" style={{ color: '#0B1F3A' }}>{h.name}</p>

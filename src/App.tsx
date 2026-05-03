@@ -63,8 +63,13 @@ function App() {
     setGeoTier(tier);
   }, []);
 
-  const handleSelectHospital = useCallback((name: string) => {
+  const handleSelectHospital = useCallback((name: string, tier: string) => {
     setSearchQuery(name);
+    if (tier === 'Premium' || tier === 'Mid-Tier') {
+      setGeoTier('Metro');
+    } else if (tier === 'Govt') {
+      setGeoTier('Tier-2');
+    }
     setView('patient');
   }, []);
 

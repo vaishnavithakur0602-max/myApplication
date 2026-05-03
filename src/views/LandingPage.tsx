@@ -16,14 +16,14 @@ function BeforeAfterTimer() {
       // Traditional: counts up slowly, 1 second = ~1 hour (reaches 4hr at 4s, 6hr at 6s)
       setTraditionalSec(Math.min(elapsed * 1, 6));
 
-      // CURIFY: completes in 8 seconds
-      if (elapsed <= 8) {
+      // CURIFY: completes in 2 seconds (representing ~2 min)
+      if (elapsed <= 2) {
         setCurifySec(elapsed);
       } else if (!curifyDone) {
         setCurifyDone(true);
       }
 
-      if (elapsed < 8 || !curifyDone) {
+      if (elapsed < 2 || !curifyDone) {
         raf = requestAnimationFrame(animate);
       }
     };
@@ -78,17 +78,17 @@ function BeforeAfterTimer() {
             <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4"/>
             <circle cx="40" cy="40" r="34" fill="none" stroke="#2D6A4F" strokeWidth="4"
               strokeDasharray={2 * Math.PI * 34}
-              strokeDashoffset={2 * Math.PI * 34 * (1 - Math.min(curifySec / 8, 1))}
+              strokeDashoffset={2 * Math.PI * 34 * (1 - Math.min(curifySec / 2, 1))}
               strokeLinecap="round" transform="rotate(-90 40 40)"
               style={{ transition: 'stroke-dashoffset 0.3s ease' }}/>
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="font-mono text-[14px] font-semibold" style={{ color: '#2D6A4F' }}>
-              {curifyDone ? '8m' : `${Math.floor(curifySec)}s`}
+              {curifyDone ? '~2m' : `${Math.floor(curifySec)}s`}
             </span>
           </div>
         </div>
-        <p className="font-dm text-[10px] mt-1.5" style={{ color: 'rgba(255,255,255,0.3)' }}>8 minutes</p>
+        <p className="font-dm text-[10px] mt-1.5" style={{ color: 'rgba(255,255,255,0.3)' }}>~2 minutes</p>
       </div>
     </div>
   );
@@ -169,8 +169,9 @@ function NetworkCanvas() {
   return <canvas ref={canvasRef} className="absolute inset-0 z-0" style={{ willChange: 'transform' }} />;
 }
 
-function StatCard({ value, suffix, label, delay }: { value: number; suffix: string; label: string; delay: number }) {
+function StatCard({ value, suffix, label, delay, prefix }: { value: number; suffix: string; label: string; delay: number; prefix?: string }) {
   const { value: count } = useCountUp(value, 2000);
+  const prefixStr = prefix || '';
   return (
     <div className="flex flex-col items-center px-7 py-5 rounded-xl"
       style={{
@@ -180,10 +181,11 @@ function StatCard({ value, suffix, label, delay }: { value: number; suffix: stri
         animation: `fade-in-up 400ms ease-out ${delay}ms both`,
       }}>
       <span className="font-mono text-[32px] text-white font-semibold">
-        {suffix === 'L Cr+' ? `₹${(count / 10).toFixed(1)}L Cr+` :
-         suffix === 'Cr+' ? `${(count / 10).toFixed(0)} Cr+` :
+        {suffix === 'Cr' && value >= 1000 ? `${prefixStr}${(count / 100).toFixed(0).replace(/\B(?=(\d{2})+(?!\d))/g, ',')} Cr` :
+         suffix === 'Cr+' ? `${prefixStr}${(count / 10).toFixed(0)} Cr+` :
+         suffix === 'Cr' ? `${prefixStr}${(count / 100).toFixed(2)} Cr` :
          suffix === '%' ? `${(count / 10).toFixed(1)}%` :
-         count.toLocaleString('en-IN') + suffix}
+         `${prefixStr}${count.toLocaleString('en-IN')}${suffix}`}
       </span>
       <span className="font-dm text-[12px] mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</span>
     </div>
@@ -234,7 +236,7 @@ function HowItWorks() {
       ),
       title: "AI Anchors to Govt Data",
       body: "Cross-references NHA, CGHS, PM-JAY, NPPA in real-time. Geo-adjusts for Metro / Tier-2 / Tier-3 pricing automatically.",
-      chip: "8-second processing",
+      chip: "Under 2 min processing",
     },
     {
       icon: (
@@ -253,7 +255,7 @@ function HowItWorks() {
   return (
     <section ref={ref} className="py-20 px-10" style={{ background: '#F7F9F8' }}>
       <h2 className="font-playfair text-[40px] text-center mb-12" style={{ color: '#0B1F3A' }}>
-        From Query to Sanction in 8 Minutes
+        From Query to Sanction in ~2 Minutes
       </h2>
       <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
         {cards.map((c, i) => (
@@ -277,7 +279,7 @@ function RealDataStats() {
   const stats = [
     { value: "₹54,720", label: "NPPA cap on standard knee implant (Mar 2024)", source: "NPPA 2024", url: "https://www.nppaindia.nic.in/" },
     { value: "₹80,000", label: "PM-JAY all-inclusive knee replacement package", source: "PM-JAY 2024", url: "https://pmjay.gov.in/" },
-    { value: "4.8 Cr+", label: "Ayushman Bharat beneficiary families covered", source: "NHA 2024", url: "https://nhp.gov.in/" },
+    { value: "8.19 Cr", label: "Patients treated under Ayushman Bharat", source: "NHA 2024", url: "https://nhp.gov.in/" },
     { value: "18–30%", label: "Avg cost uplift range for comorbid patients", source: "CGHS 2024", url: "https://cghs.gov.in/" },
   ];
 
@@ -348,9 +350,9 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
           {/* Live counters */}
           <div className="flex flex-wrap justify-center gap-4 mb-6"
             style={{ animation: `fade-in-up 400ms ease-out 360ms both` }}>
-            <StatCard value={23} suffix="L Cr+" label="Healthcare loans disbursed FY24" delay={0} />
-            <StatCard value={55} suffix="Cr+" label="PM-JAY beneficiaries enrolled" delay={80} />
-            <StatCard value={967} suffix="%" label="Time saved vs manual underwriting" delay={160} />
+            <StatCard value={9406} suffix="Cr" label="AB PM-JAY budget allocated FY2025-26" delay={0} prefix="₹" />
+            <StatCard value={55} suffix="Cr+" label="Citizens covered under PM-JAY" delay={80} />
+            <StatCard value={819} suffix="Cr" label="Patients treated under Ayushman Bharat" delay={160} />
           </div>
 
           {/* Before/After Timer */}

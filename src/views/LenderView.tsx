@@ -947,14 +947,23 @@ export default function LenderView({ searchQuery, geoTier, location }: LenderVie
             <ConfidenceGauge score={confidence} />
 
             {/* Time Saving Counter */}
-            <div className="rounded-lg p-3 mb-4" style={{ background: '#F3F4F1' }}>
+            <div className="rounded-lg p-3 mb-4 relative group" style={{ background: '#F3F4F1' }}>
               <p className="font-mono text-[13px]">
                 <span style={{ color: '#991B1B' }}>Manual Underwriting: 4–6 hrs</span>
                 {'  |  '}
-                <span className="font-semibold" style={{ color: '#2D6A4F' }}>CURIFY: 8 min</span>
+                <span className="font-semibold" style={{ color: '#2D6A4F' }}>CURIFY: ~2 min</span>
                 {'  |  '}
-                <span className="font-semibold" style={{ color: '#2D6A4F' }}>Time Saved: 96.7%</span>
+                <span className="font-semibold cursor-help" style={{ color: '#2D6A4F', borderBottom: '1px dashed #2D6A4F' }}>
+                  96.7% Time saved vs 4–6 hr manual underwriting benchmark
+                </span>
               </p>
+              <div className="absolute left-3 top-full mt-1 z-20 hidden group-hover:block"
+                style={{ width: '340px' }}>
+                <div className="rounded-lg p-3 font-dm text-[11px] leading-relaxed"
+                  style={{ background: '#0B1F3A', color: 'rgba(255,255,255,0.85)', boxShadow: '0 8px 24px rgba(11,31,58,0.3)' }}>
+                  CURIFY avg. processing time: under 2 mins. Industry manual underwriting benchmark: 4–6 hours (NBFC standard)
+                </div>
+              </div>
             </div>
 
             {tableLoading ? (
